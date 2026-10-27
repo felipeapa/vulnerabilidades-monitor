@@ -6,6 +6,7 @@
       "source": "lockfile",
       "ecosystem": "npm",
       "manifest": "./package-lock.json",
+      "version": null,
       "enabled": true
     },
     {
@@ -13,7 +14,10 @@
       "name": "Laravel",
       "source": "packages",
       "ecosystem": "Packagist",
-      "packages": ["laravel/framework"],
+      "packages": [
+        "laravel/framework"
+      ],
+      "version": null,
       "enabled": true
     },
     {
@@ -22,6 +26,7 @@
       "source": "nvd",
       "match": "cpe:2.3:a:php:php",
       "product": "php",
+      "version": null,
       "enabled": true
     },
     {
@@ -30,6 +35,7 @@
       "source": "nvd",
       "match": "cpe:2.3:a:python:python",
       "product": "python",
+      "version": null,
       "enabled": true
     },
     {
@@ -38,6 +44,7 @@
       "source": "nvd",
       "match": "cpe:2.3:a:oracle:mysql",
       "product": "mysql",
+      "version": null,
       "enabled": true
     }
   ],

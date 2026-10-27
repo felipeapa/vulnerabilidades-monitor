@@ -61,9 +61,17 @@ export function vulnerabilityKey(vuln) {
   return `${vuln.id || vuln.cveId}|${vuln.technology || ''}|${vuln.packageName || vuln.technology}|${vuln.version || ''}`;
 }
 
-export function mergeVulnerabilities(existing, incoming) {
+// A full scan is authoritative for the technologies it covered: records that no
+// longer apply (new version declared, finding withdrawn) must not linger.
+export function mergeVulnerabilities(existing, incoming, { replaceTechnologies = [] } = {}) {
+  const replace = new Set(replaceTechnologies);
   const byKey = new Map();
-  for (const vuln of existing) byKey.set(vulnerabilityKey(vuln), vuln);
+
+  for (const vuln of existing) {
+    if (replace.has(vuln.technology)) continue;
+    byKey.set(vulnerabilityKey(vuln), vuln);
+  }
+
   for (const vuln of incoming) byKey.set(vulnerabilityKey(vuln), vuln);
   return [...byKey.values()];
 }

@@ -25,7 +25,10 @@ export async function scanTechnologies({ technologies, windowDays, since = null 
         stats.packagesChecked += entries.length;
         findings.push(...(await queryBatch(entries, { ecosystem: technology.ecosystem, technology })));
       } else if (technology.source === 'packages') {
-        const entries = (technology.packages || []).map(name => ({ name }));
+        const entries = (technology.packages || []).map(name => ({
+          name,
+          ...(technology.version ? { version: technology.version } : {}),
+        }));
         stats.packagesChecked += entries.length;
         findings.push(...(await queryBatch(entries, { ecosystem: technology.ecosystem, technology })));
       } else if (technology.source === 'nvd') {

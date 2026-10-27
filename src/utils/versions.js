@@ -22,3 +22,11 @@ export function compareVersions(a, b) {
 
   return 0;
 }
+
+// Release branch of a version ("8.4.27" -> "8.4"). Fixes are published per branch,
+// so a single advisory can carry several unrelated fix versions.
+export function versionBranch(version) {
+  const parts = String(version ?? '').split(/[.+-]/);
+  if (parts.length < 2) return parts[0] || '';
+  return `${parts[0]}.${parts[1]}`;
+}
