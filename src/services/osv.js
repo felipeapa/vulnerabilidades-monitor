@@ -1,6 +1,7 @@
 // OSV.dev client - real vulnerability data for package ecosystems (no API key required)
 import axios from 'axios';
-import { compareVersions } from '../utils/versions.js';
+import { compareVersions, versionBranch } from '../utils/versions.js';
+import { buildRemediation } from './remediation.js';
 
 const OSV_API = 'https://api.osv.dev/v1';
 const TIMEOUT_MS = 20000;
@@ -13,9 +14,6 @@ const SEVERITY_MAP = {
   HIGH: 'HIGH',
   CRITICAL: 'CRITICAL',
 };
-
-const NO_FIX_MESSAGE =
-  'No hay versión corregida publicada. Revisa el aviso y aplica el parche del fabricante.';
 
 export async function queryPackage(packageName, version, { ecosystem = 'npm', technology = null } = {}) {
   const body = { package: { name: packageName, ecosystem } };
@@ -93,7 +91,7 @@ function normalize(vuln, { packageName, version, ecosystem, technology }) {
     aliases.find(alias => alias.startsWith('CVE-')) ||
     (vuln.id?.startsWith('CVE-') ? vuln.id : '');
 
-  const fixedVersion = pickFixedVersion(vuln, packageName, version);
+  const fixes = pickFixes(vuln, packageName, version);
 
   return {
     id: vuln.id,
@@ -111,33 +109,49 @@ function normalize(vuln, { packageName, version, ecosystem, technology }) {
     advisoryUrl: `https://osv.dev/vulnerability/${vuln.id}`,
     aliases,
     source: 'OSV',
-    fixedVersion,
-    remediation: fixedVersion
-      ? `Actualiza ${packageName} a ${fixedVersion} o superior.`
-      : NO_FIX_MESSAGE,
+    fixedVersion: fixes[0]?.version || null,
+    fixes,
+    remediation: buildRemediation(packageName, fixes),
     checked_at: new Date().toISOString(),
   };
 }
 
-function pickFixedVersion(vuln, packageName, version) {
-  const candidates = new Set();
+// With an installed version, the fix is the nearest release above it, which is
+// what the user actually has to install. Without one, every published branch is
+// listed: picking the highest would suggest a version from another branch.
+function pickFixes(vuln, packageName, version) {
+  const candidates = new Map();
 
   for (const affected of vuln.affected || []) {
     if (affected.package?.name && affected.package.name !== packageName) continue;
 
     for (const range of affected.ranges || []) {
       for (const event of range.events || []) {
-        if (event.fixed && event.fixed !== '0') candidates.add(event.fixed);
+        if (!event.fixed || event.fixed === '0') continue;
+        candidates.set(event.fixed, {
+          version: event.fixed,
+          branch: versionBranch(event.fixed),
+          boundary: 'excluding',
+        });
       }
     }
   }
 
-  const sorted = [...candidates].sort(compareVersions);
-  if (!sorted.length) return null;
+  const all = [...candidates.values()].sort((a, b) => compareVersions(a.version, b.version));
+  if (!all.length) return [];
 
-  if (!version) return sorted[sorted.length - 1];
+  if (version) {
+    const next = all.find(fix => compareVersions(fix.version, version) > 0);
+    return next ? [next] : [];
+  }
 
-  return sorted.find(fixed => compareVersions(fixed, version) > 0) || sorted[sorted.length - 1];
+  // No installed version: keep the lowest fix per branch, the nearest upgrade.
+  const byBranch = new Map();
+  for (const fix of all) {
+    if (!byBranch.has(fix.branch)) byBranch.set(fix.branch, fix);
+  }
+
+  return [...byBranch.values()].sort((a, b) => compareVersions(b.version, a.version));
 }
 
 function normalizeSeverity(vuln) {

@@ -58,11 +58,11 @@ La lista de tecnologías escaneadas vive en `data/technologies.json`:
 ```json
 {
   "technologies": [
-    { "id": "nodejs",  "name": "Node.js", "source": "lockfile", "ecosystem": "npm", "manifest": "./package-lock.json" },
-    { "id": "laravel", "name": "Laravel", "source": "packages", "ecosystem": "Packagist", "packages": ["laravel/framework"] },
-    { "id": "php",     "name": "PHP",     "source": "nvd", "match": "cpe:2.3:a:php:php",       "product": "php" },
-    { "id": "python",  "name": "Python",  "source": "nvd", "match": "cpe:2.3:a:python:python", "product": "python" },
-    { "id": "mysql",   "name": "MySQL",   "source": "nvd", "match": "cpe:2.3:a:oracle:mysql",  "product": "mysql" }
+    { "id": "nodejs",  "name": "Node.js", "source": "lockfile", "ecosystem": "npm", "manifest": "./package-lock.json", "version": null },
+    { "id": "laravel", "name": "Laravel", "source": "packages", "ecosystem": "Packagist", "packages": ["laravel/framework"], "version": null },
+    { "id": "php",     "name": "PHP",     "source": "nvd", "match": "cpe:2.3:a:php:php",       "product": "php",    "version": null },
+    { "id": "python",  "name": "Python",  "source": "nvd", "match": "cpe:2.3:a:python:python", "product": "python", "version": null },
+    { "id": "mysql",   "name": "MySQL",   "source": "nvd", "match": "cpe:2.3:a:oracle:mysql",  "product": "mysql",  "version": null }
   ]
 }
 ```
@@ -72,6 +72,32 @@ Tipos de `source`:
 - `lockfile` — lee versiones exactas del manifiesto y consulta OSV por ecosistema.
 - `packages` — consulta OSV por lista de paquetes (sin versión fija).
 - `nvd` — consulta NVD por CPE; requiere `match` y `product`.
+
+### Versión declarada
+
+`version` es opcional y cambia cómo se calcula la solución:
+
+| `version` | Comportamiento |
+|-----------|----------------|
+| `null` | Se listan todas las ramas con parche publicado. |
+| Declarada | Se descartan los hallazgos que no cubren esa versión y la solución apunta a la rama correspondiente. |
+
+Ejemplo con `"version": "8.3.0"` en PHP:
+
+```
+Actualiza PHP a 8.3.36 o superior.
+```
+
+Sin declararla, el mismo CVE se muestra así:
+
+```
+Actualiza PHP a una versión corregida: 8.5.12 (rama 8.5), 8.4.27 (rama 8.4),
+8.3.36 (rama 8.3), 8.2.35 (rama 8.2).
+```
+
+Cambiar `version` en `data/technologies.json` invalida lo almacenado y fuerza un
+escaneo completo la próxima vez, para que los hallazgos que dejaron de aplicar
+desaparezcan del archivo.
 
 ## Endpoints API
 

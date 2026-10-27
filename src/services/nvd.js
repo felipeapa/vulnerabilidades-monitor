@@ -2,7 +2,8 @@
 // OSV does not expose these runtimes/databases as package ecosystems, so we query
 // NVD by CPE match string instead. Public API, no key required (rate limited).
 import axios from 'axios';
-import { compareVersions } from '../utils/versions.js';
+import { compareVersions, versionBranch } from '../utils/versions.js';
+import { buildRemediation, NVD_NO_FIX } from './remediation.js';
 
 const NVD_API = 'https://services.nvd.nist.gov/rest/json/cves/2.0';
 const MAX_RANGE_DAYS = 120;
@@ -16,9 +17,6 @@ const SEVERITY_MAP = {
   MEDIUM: 'MEDIUM',
   LOW: 'LOW',
 };
-
-const NO_FIX_MESSAGE =
-  'No hay versión corregida publicada. Revisa el aviso y aplica el parche del fabricante.';
 
 let lastRequestAt = 0;
 
@@ -43,7 +41,9 @@ export async function queryProduct(technology, { windowDays = 365, since = null 
     }
   }
 
-  return [...byId.values()].map(cve => normalize(cve, technology));
+  return [...byId.values()]
+    .map(cve => normalize(cve, technology))
+    .filter(Boolean);
 }
 
 function buildRanges({ windowDays, since }) {
@@ -117,8 +117,16 @@ async function fetchPage(params, attempt = 0) {
 
 function normalize(cve, technology) {
   const description = cve.descriptions?.find(item => item.lang === 'en')?.value || '';
-  const fixedVersion = extractFixedVersion(cve.configurations);
   const packageName = technology.product || technology.name.toLowerCase();
+  const declared = technology.version || null;
+  const ranges = extractRanges(cve.configurations, technology);
+
+  // With a declared version, a finding that does not cover it is not our problem.
+  if (declared && ranges.length && !ranges.some(range => inRange(declared, range))) {
+    return null;
+  }
+
+  const { fixes, remediation } = resolveFixes(cve.configurations, technology, declared);
 
   return {
     id: cve.id,
@@ -136,10 +144,10 @@ function normalize(cve, technology) {
     advisoryUrl: `https://nvd.nist.gov/vuln/detail/${cve.id}`,
     aliases: [],
     source: 'NVD',
-    fixedVersion,
-    remediation: fixedVersion
-      ? `Actualiza ${technology.name} a ${fixedVersion} o superior.`
-      : NO_FIX_MESSAGE,
+    // Only an exclusive upper bound names a real release to install.
+    fixedVersion: fixes.find(fix => fix.boundary === 'excluding')?.version || null,
+    fixes,
+    remediation,
     checked_at: new Date().toISOString(),
   };
 }
@@ -157,21 +165,119 @@ function extractSeverity(metrics = {}) {
   return SEVERITY_MAP[String(raw).toUpperCase()] || 'UNKNOWN';
 }
 
-function extractFixedVersion(configurations) {
-  const candidates = [];
+// With a declared version the answer is the fix for that release branch, which is
+// the only one the user can install. Without it, every branch is listed.
+function resolveFixes(configurations, technology, declared) {
+  const all = extractFixes(configurations, technology);
+
+  if (!declared) {
+    return {
+      fixes: all,
+      remediation: buildRemediation(technology.name, all, { noFixMessage: NVD_NO_FIX }),
+    };
+  }
+
+  const branch = versionBranch(declared);
+  const branchFixes = all.filter(fix => fix.branch === branch);
+
+  if (!branchFixes.length) {
+    return {
+      fixes: [],
+      remediation: `No hay versión corregida publicada para la rama ${branch}. Revisa el aviso del fabricante.`,
+    };
+  }
+
+  return { fixes: branchFixes, remediation: buildRemediation(technology.name, branchFixes) };
+}
+
+// Affected ranges for our product only, used to decide whether a declared
+// version is actually exposed.
+export function extractRanges(configurations, technology) {
+  const target = cpeKey(technology.match);
+  if (!target) return [];
+
+  const ranges = [];
 
   for (const configuration of configurations || []) {
     for (const node of configuration.nodes || []) {
       for (const match of node.cpeMatch || []) {
-        if (match.vulnerable && match.versionEndExcluding) {
-          candidates.push(match.versionEndExcluding);
+        if (!match.vulnerable) continue;
+        if (cpeKey(match.criteria) !== target) continue;
+
+        const startIncluding = match.versionStartIncluding || null;
+        const startExcluding = match.versionStartExcluding || null;
+        const endExcluding = match.versionEndExcluding || null;
+        const endIncluding = match.versionEndIncluding || null;
+
+        if (!startIncluding && !startExcluding && !endExcluding && !endIncluding) continue;
+
+        ranges.push({ startIncluding, startExcluding, endExcluding, endIncluding });
+      }
+    }
+  }
+
+  return ranges;
+}
+
+function inRange(version, range) {
+  if (range.startIncluding && compareVersions(version, range.startIncluding) < 0) return false;
+  if (range.startExcluding && compareVersions(version, range.startExcluding) <= 0) return false;
+  if (range.endExcluding && compareVersions(version, range.endExcluding) >= 0) return false;
+  if (range.endIncluding && compareVersions(version, range.endIncluding) > 0) return false;
+  return true;
+}
+
+// An advisory lists every affected product, so a PHP CVE can also carry PAN-OS
+// ranges. Only matches for the configured product are ours, and each release
+// branch keeps its own fix instead of being collapsed into the highest number.
+export function extractFixes(configurations, technology) {
+  const target = cpeKey(technology.match);
+  if (!target) return [];
+
+  const byBranch = new Map();
+
+  for (const configuration of configurations || []) {
+    for (const node of configuration.nodes || []) {
+      for (const match of node.cpeMatch || []) {
+        if (!match.vulnerable) continue;
+        if (cpeKey(match.criteria) !== target) continue;
+
+        const fix = toFix(match);
+        if (!fix) continue;
+
+        const current = byBranch.get(fix.branch);
+        if (!current || compareVersions(fix.version, current.version) > 0) {
+          byBranch.set(fix.branch, fix);
         }
       }
     }
   }
 
-  if (!candidates.length) return null;
-  return candidates.sort(compareVersions)[candidates.length - 1];
+  return [...byBranch.values()].sort((a, b) => compareVersions(b.version, a.version));
+}
+
+// versionEndExcluding: X means X is the first safe release.
+// versionEndIncluding: X means only releases after X are safe, and NVD does not
+// name the next one, so the fix stays an open boundary.
+function toFix(match) {
+  const excluded = match.versionEndExcluding;
+  if (excluded) {
+    return { version: excluded, branch: versionBranch(excluded), boundary: 'excluding' };
+  }
+
+  const included = match.versionEndIncluding;
+  if (included) {
+    return { version: included, branch: versionBranch(included), boundary: 'including' };
+  }
+
+  return null;
+}
+
+// "cpe:2.3:a:php:php:*:..." -> "a:php:php", so vendor and product must match.
+function cpeKey(cpe) {
+  const parts = String(cpe || '').toLowerCase().split(':');
+  if (parts.length < 5) return '';
+  return `${parts[2]}:${parts[3]}:${parts[4]}`;
 }
 
 function firstSentence(text) {

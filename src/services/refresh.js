@@ -1,5 +1,6 @@
 // Full refresh: scan all technologies, merge into storage and persist scan metadata.
 import { scanTechnologies } from './scanner.js';
+import { getTechnologies } from './technologies.js';
 import {
   getVulnerabilities,
   saveVulnerabilities,
@@ -10,7 +11,22 @@ import {
 
 const MIN_INTERVAL_MS = 2 * 60 * 1000;
 
+// Bumped whenever the fix extraction changes, so records stored with the old
+// logic are re-derived instead of surviving the incremental NVD sync.
+const FIXES_VERSION = 2;
+
 let inFlight = null;
+
+// Any change to the scan inputs (declared versions) invalidates stored findings:
+// a CVE that no longer applies has to disappear, not linger in the file.
+async function scanSignature() {
+  const registry = await getTechnologies();
+  const inputs = registry
+    .filter(technology => technology.enabled !== false)
+    .map(technology => `${technology.id}@${technology.version || 'any'}`);
+
+  return `v${FIXES_VERSION}|${inputs.join(',')}`;
+}
 
 export async function refreshAll({ force = false } = {}) {
   if (inFlight) return inFlight;
@@ -34,10 +50,15 @@ export async function refreshAll({ force = false } = {}) {
 }
 
 async function runScan(previous) {
-  const { findings, stats } = await scanTechnologies({ since: previous.nvdSyncedAt || null });
+  const signature = await scanSignature();
+  const since = previous.scanSignature === signature ? previous.nvdSyncedAt || null : null;
+
+  const { findings, stats } = await scanTechnologies({ since });
 
   const stored = await getVulnerabilities();
-  const data = mergeVulnerabilities(stored, findings);
+  const data = mergeVulnerabilities(stored, findings, {
+    replaceTechnologies: since === null ? stats.technologiesScanned : [],
+  });
   await saveVulnerabilities(data);
 
   const now = new Date().toISOString();
@@ -56,7 +77,12 @@ async function runScan(previous) {
     nvdSyncedAt,
   };
 
-  await saveScanState({ lastScanAt: now, nvdSyncedAt, lastResult: result });
+  await saveScanState({
+    lastScanAt: now,
+    nvdSyncedAt,
+    scanSignature: signature,
+    lastResult: result,
+  });
 
   return result;
 }
