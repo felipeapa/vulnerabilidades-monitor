@@ -1,0 +1,30 @@
+{
+  "name": "vulnerabilidades-monitor",
+  "version": "1.0.0",
+  "description": "Monitorización diario sin BD usando archivos JSON",
+  "main": "src/app/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "nodemon src/app/index.js",
+    "dev:frontend": "vite",
+    "start": "node src/app/index.js",
+    "build": "vite build",
+    "daily-check": "node scripts/daily-check.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.29.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.4",
+    "vite": "^5.4.0"
+  }
+}

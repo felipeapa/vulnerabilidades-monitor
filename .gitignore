@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Temporary files and backups
+*.log
+.DS_Store
+
+# Development IDE
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Backup files (no subir commits)
+*.backup
+vuln_report_*.txt
+
+# Git ignore backup
+.gitignore_backup/
+
+# CodeGraph local index
+.codegraph/
+
+# Local skill registry cache
+.atl/
+
+# Generated scan artifacts
+data/vulnerabilities.json
+data/scan-state.json
+data/checks.json
+reports/

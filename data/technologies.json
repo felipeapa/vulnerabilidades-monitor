@@ -1,0 +1,45 @@
+{
+  "technologies": [
+    {
+      "id": "nodejs",
+      "name": "Node.js",
+      "source": "lockfile",
+      "ecosystem": "npm",
+      "manifest": "./package-lock.json",
+      "enabled": true
+    },
+    {
+      "id": "laravel",
+      "name": "Laravel",
+      "source": "packages",
+      "ecosystem": "Packagist",
+      "packages": ["laravel/framework"],
+      "enabled": true
+    },
+    {
+      "id": "php",
+      "name": "PHP",
+      "source": "nvd",
+      "match": "cpe:2.3:a:php:php",
+      "product": "php",
+      "enabled": true
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "source": "nvd",
+      "match": "cpe:2.3:a:python:python",
+      "product": "python",
+      "enabled": true
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "source": "nvd",
+      "match": "cpe:2.3:a:oracle:mysql",
+      "product": "mysql",
+      "enabled": true
+    }
+  ],
+  "lastUpdated": "2026-10-27T00:00:00.000Z"
+}

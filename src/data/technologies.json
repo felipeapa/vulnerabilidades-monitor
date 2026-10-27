@@ -1,0 +1,46 @@
+{
+  "nodejs": {
+    "name": "Node.js",
+    "category": "backend",
+    "versionConstraints": {
+      "current": "18.x-latest-stable",
+      "latest": "22.x-lts"
+    },
+    "advisoryUrl": "https://admin.davidzhang.xyz/api/npm-vuln-advisories/latest/next",
+    "checkSchedule": "0 4 * * *"
+  },
+  "npm": {
+    "name": "NPM Registry",  
+    "category": "package_manager",
+    "versionConstraints": "latest",
+    "advisoryUrl": null,
+    "checkSchedule": "0 4 * * *"
+  },
+  "pnpm": {
+    "name": "PNPM Package Manager",
+    "category": "package_manager",
+    "versionConstraints": "latest",
+    "advisoryUrl": null,
+    "checkSchedule": "0 5 * * *"
+  },
+  "php": {
+    "name": "PHP Runtime",
+    "category": "runtime",
+    "versionConstraints": {
+      "current": "8.2.x-lts",
+      "latest": "8.3.x-latest"
+    },
+    "advisoryUrl": null,
+    "checkSchedule": "0 4 * * *"  
+  },
+  "mysql": {
+    "name": "MySQL Database", 
+    "category": "database",
+    "versionConstraints": {
+      "current": "8.x-lts",
+      "latest": "8.3.x"
+    },
+    "advisoryUrl": null,
+    "checkSchedule": "0 5 * * *"
+  }
+}

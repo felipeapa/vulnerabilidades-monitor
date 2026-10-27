@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Vulnerability Monitor">
+  <rect width="64" height="64" rx="14" fill="#101828" />
+  <path
+    d="M32 13l15 6.4v11.2c0 9.4-6.4 16.1-15 18.8-8.6-2.7-15-9.4-15-18.8V19.4L32 13z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="3.2"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M25.5 32.2l4.6 4.6 9-9.4"
+    fill="none"
+    stroke="#7fba7a"
+    stroke-width="3.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
