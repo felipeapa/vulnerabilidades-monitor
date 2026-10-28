@@ -1,0 +1,5 @@
+export GIT_COMMITTER_NAME="Felipe Apablaza"
+export GIT_COMMITTER_EMAIL="felipe.apablaza.herrera@gmail.com"
+export GIT_AUTHOR_NAME="Felipe Apablaza"  
+export GIT_AUTHOR_EMAIL="felipe.apablaza.herrera@gmail.com"
+true

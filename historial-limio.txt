@@ -1,0 +1,8 @@
+=== TUS ÚLTIMOS 5 COMMITS CORREGIDOS ===
+1. fe4b03c - feat: monitor Node.js, Laravel, PHP, Python and MySQL vulnerabilities
+2. ed05a44 - fix: derive remediation from the matching product and release branch  
+3. 12d097c - docs: remove obsolete MySQL-era notes (HOY, HEAD actual)
+
+=== LO QUE SUCEDIÓ ===
+✅ Eliminamos el commit corrupto con nombre URL-encoded "Felipe%20Apablaza"
+✅ Tu historial Git ahora es limpio y coherente
