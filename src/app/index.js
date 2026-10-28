@@ -10,6 +10,8 @@ import {
   getVulnerabilities,
   saveVulnerabilities,
   mergeVulnerabilities,
+  setVulnerabilityResolved,
+  vulnerabilityKey,
   getScanState,
 } from '../utils/storage.js';
 
@@ -45,11 +47,28 @@ server.get('/api/vulnerabilidades', async () => {
   ]);
 
   return {
-    data,
+    // The client cannot rebuild the storage key on its own (it needs the
+    // technology), so the server exposes it for status updates.
+    data: data.map(vuln => ({ ...vuln, recordKey: vulnerabilityKey(vuln) })),
     technologies,
     lastScanAt: state.lastScanAt,
     source: 'OSV.dev + NIST NVD',
   };
+});
+
+// Mark a finding as resolved (or reopen it) without waiting for the next scan.
+server.post('/api/vulnerabilidades/estado', async ({ body }, reply) => {
+  const key = String(body?.key || '').trim();
+  if (!key) {
+    return reply.status(400).send({ error: 'Missing key' });
+  }
+
+  const record = await setVulnerabilityResolved(key, Boolean(body?.resolved));
+  if (!record) {
+    return reply.status(404).send({ error: 'Vulnerability not found' });
+  }
+
+  return reply.send({ success: true, record });
 });
 
 server.get('/api/tecnologias', async () => ({

@@ -72,8 +72,37 @@ export function mergeVulnerabilities(existing, incoming, { replaceTechnologies =
     byKey.set(vulnerabilityKey(vuln), vuln);
   }
 
-  for (const vuln of incoming) byKey.set(vulnerabilityKey(vuln), vuln);
+  // A rescan re-derives the finding but must not discard the review decision.
+  for (const vuln of incoming) {
+    const key = vulnerabilityKey(vuln);
+    const previous = byKey.get(key);
+    byKey.set(
+      key,
+      previous?.resolved
+        ? { ...vuln, resolved: true, resolvedAt: previous.resolvedAt || null }
+        : vuln
+    );
+  }
+
   return [...byKey.values()];
+}
+
+// Review state lives with the record so it survives rescans and is shared by
+// every client reading the same data file.
+export async function setVulnerabilityResolved(key, resolved) {
+  const vulns = await getVulnerabilities();
+  const index = vulns.findIndex(vuln => vulnerabilityKey(vuln) === key);
+  if (index === -1) return null;
+
+  const updated = {
+    ...vulns[index],
+    resolved: Boolean(resolved),
+    resolvedAt: resolved ? new Date().toISOString() : null,
+  };
+
+  vulns[index] = updated;
+  await saveVulnerabilities(vulns);
+  return updated;
 }
 
 export async function addVulnerability(vuln) {

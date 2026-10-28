@@ -7,6 +7,9 @@ export default function Toolbar({
   filter,
   onFilterChange,
   counts,
+  status,
+  onStatusChange,
+  statusCounts,
   period,
   onPeriodChange,
 }) {
@@ -18,6 +21,12 @@ export default function Toolbar({
     { value: 'LOW', label: 'Bajas', countKey: 'low' },
     { value: 'UNKNOWN', label: 'Sin dato', countKey: 'unknown' },
   ].filter(item => item.value !== 'UNKNOWN' || counts.unknown > 0);
+
+  const statusFilters = [
+    { value: 'ALL', label: 'Todas', countKey: 'all' },
+    { value: 'OPEN', label: 'Pendientes', countKey: 'open' },
+    { value: 'RESOLVED', label: 'Resueltas', countKey: 'resolved' },
+  ];
 
   return (
     <div className="toolbar">
@@ -38,19 +47,40 @@ export default function Toolbar({
         />
       </div>
 
-      <div className="filters" role="group" aria-label="Filtrar por severidad">
-        {filters.map(item => (
-          <button
-            key={item.value}
-            type="button"
-            className="filter-chip"
-            aria-pressed={filter === item.value}
-            onClick={() => onFilterChange(item.value)}
-          >
-            {item.label}
-            <span className="filter-chip__count">{counts[item.countKey] ?? 0}</span>
-          </button>
-        ))}
+      <div className="filter-group">
+        <span className="filter-group__label">Severidad</span>
+        <div className="filters" role="group" aria-label="Filtrar por severidad">
+          {filters.map(item => (
+            <button
+              key={item.value}
+              type="button"
+              className="filter-chip"
+              aria-pressed={filter === item.value}
+              onClick={() => onFilterChange(item.value)}
+            >
+              {item.label}
+              <span className="filter-chip__count">{counts[item.countKey] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="filter-group">
+        <span className="filter-group__label">Estado</span>
+        <div className="filters" role="group" aria-label="Filtrar por estado de revisión">
+          {statusFilters.map(item => (
+            <button
+              key={item.value}
+              type="button"
+              className="filter-chip"
+              aria-pressed={status === item.value}
+              onClick={() => onStatusChange(item.value)}
+            >
+              {item.label}
+              <span className="filter-chip__count">{statusCounts[item.countKey] ?? 0}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <label className="period">

@@ -32,6 +32,13 @@ export function refreshVulnerabilities({ force = false } = {}) {
   });
 }
 
+export function setVulnerabilityStatus(key, resolved) {
+  return request('/api/vulnerabilidades/estado', {
+    method: 'POST',
+    body: JSON.stringify({ key, resolved }),
+  });
+}
+
 export function checkPackage(packageName, version) {
   return request('/api/check', {
     method: 'POST',

@@ -107,6 +107,7 @@ desaparezcan del archivo.
 | `/api/tecnologias` | GET | Tecnologías configuradas |
 | `/api/refresh` | POST | Escanea todas las tecnologías y fusiona resultados. `{"force": true}` ignora la guardia de 2 minutos |
 | `/api/check` | POST | Consulta en vivo un paquete contra OSV (`packageName`, `version`, `ecosystem`) |
+| `/api/vulnerabilidades/estado` | POST | Marca o reabre un hallazgo. `{"key": "recordKey", "resolved": true}` |
 | `/api/report` | GET | Reporte descargable. Parámetros: `days` (30/90/180/365/0), `format` (`txt`/`csv`/`json`), `technologies` (ids separados por coma) |
 | `/health` | GET | Estado y total de hallazgos |
 
@@ -123,6 +124,8 @@ Devuelve un TXT con resumen por tecnología, resumen por severidad y detalle con
 - **Periodo por defecto: 30 días.** El selector permite 90, 180, 365 o todo lo almacenado. La elección se guarda en `localStorage`.
 - **Filtro de tecnologías** multi-selección con contadores; también se guarda en `localStorage`. El escaneo siempre cubre todas las tecnologías habilitadas: el filtro es de visualización y de reportes.
 - **Columna «Solución»** con la versión corregida cuando existe; si no, indica que no hay parche publicado.
+- **Estado de revisión:** cada fila se puede marcar como «Resuelta» o volver a «Pendiente». Se guarda en `data/vulnerabilities.json` (`resolved`, `resolvedAt`), sobrevive a los reescaneos y se comparte entre navegadores. El filtro «Estado» separa pendientes de resueltas.
+- **Sección «Fuentes de datos»** al final del dashboard: explica qué aporta OSV.dev y qué aporta NIST NVD, por qué se usan ambas, y lista cada tecnología configurada con su fuente y el tipo de consulta (ecosistema o CPE).
 - **Recarga automática cada 60 minutos** desde el frontend (`POST /api/refresh` + recarga de la lista). El backend rechaza escaneos duplicados dentro de 2 minutos salvo `force`.
 - **Escaneo incremental:** NVD se consulta con `lastModStartDate`/`lastModEndDate` desde el último sync correcto. Si el último sync tiene más de 120 días (límite de NVD por petición) se vuelve a bajar la ventana completa.
 

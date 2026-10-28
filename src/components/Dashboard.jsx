@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchVulnerabilities, refreshVulnerabilities } from '../api/client';
+import {
+  fetchVulnerabilities,
+  refreshVulnerabilities,
+  setVulnerabilityStatus,
+} from '../api/client';
 import { normalizeSeverity } from './SeverityBadge';
 import StatsGrid from './StatsGrid';
 import Toolbar from './Toolbar';
 import TechnologyFilter from './TechnologyFilter';
 import ReportPanel from './ReportPanel';
+import DataSourcePanel from './DataSourcePanel';
 import VulnerabilityTable from './VulnerabilityTable';
 import PackageCheckForm from './PackageCheckForm';
 import { ShieldIcon, RefreshIcon, AlertIcon } from './icons';
@@ -36,6 +41,7 @@ export default function Dashboard() {
   const [notice, setNotice] = useState(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('ALL');
+  const [status, setStatus] = useState('ALL');
   const [expanded, setExpanded] = useState(() => new Set());
   const [period, setPeriod] = useState(() => {
     const stored = localStorage.getItem(PERIOD_STORAGE_KEY);
@@ -133,11 +139,28 @@ export default function Dashboard() {
     return result;
   }, [scoped]);
 
+  const statusCounts = useMemo(() => {
+    const resolved = scoped.filter(vuln => vuln.resolved).length;
+    return { all: scoped.length, open: scoped.length - resolved, resolved };
+  }, [scoped]);
+
+  const criticalOpen = useMemo(
+    () =>
+      scoped.filter(
+        vuln => !vuln.resolved && normalizeSeverity(vuln.severity) === 'CRITICAL'
+      ).length,
+    [scoped]
+  );
+
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
 
     return scoped
       .filter(vuln => filter === 'ALL' || normalizeSeverity(vuln.severity) === filter)
+      .filter(vuln => {
+        if (status === 'ALL') return true;
+        return status === 'RESOLVED' ? Boolean(vuln.resolved) : !vuln.resolved;
+      })
       .filter(vuln => {
         if (!term) return true;
         return [
@@ -158,7 +181,7 @@ export default function Dashboard() {
         if (bySeverity !== 0) return bySeverity;
         return new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0);
       });
-  }, [scoped, filter, query]);
+  }, [scoped, filter, status, query]);
 
   const lastScan = useMemo(() => {
     if (lastScanAt) return formatDateTime(lastScanAt);
@@ -212,6 +235,22 @@ export default function Dashboard() {
     });
   }, []);
 
+  // The review decision is stored on the server so it survives rescans and is
+  // shared by every browser reading the same data file.
+  const toggleResolved = useCallback(async vuln => {
+    const key = vuln.recordKey;
+    if (!key) return;
+
+    try {
+      const { record } = await setVulnerabilityStatus(key, !vuln.resolved);
+      setVulns(previous =>
+        previous.map(item => (item.recordKey === key ? { ...record, recordKey: key } : item))
+      );
+    } catch (err) {
+      setNotice(`No se pudo cambiar el estado: ${err.message}`);
+    }
+  }, []);
+
   const toggleTech = useCallback(
     id => {
       setSelectedTech(previous => {
@@ -236,6 +275,8 @@ export default function Dashboard() {
   } else if (!vulns.length) {
     emptyMessage =
       'Todavía no hay datos guardados. Usa «Actualizar datos» para escanear las tecnologías.';
+  } else if (!visible.length) {
+    emptyMessage = 'Ninguna vulnerabilidad coincide con los filtros aplicados.';
   }
 
   return (
@@ -285,15 +326,15 @@ export default function Dashboard() {
       </header>
 
       <main className="container">
-        {counts.critical > 0 && (
+        {criticalOpen > 0 && (
           <div className="alert-banner" role="alert">
             <span className="alert-banner__icon">
               <AlertIcon />
             </span>
             <div>
               <p className="alert-banner__title">
-                {counts.critical} vulnerabilidad{counts.critical === 1 ? '' : 'es'} crítica
-                {counts.critical === 1 ? '' : 's'} en el periodo
+                {criticalOpen} vulnerabilidad{criticalOpen === 1 ? '' : 'es'} crítica
+                {criticalOpen === 1 ? '' : 's'} sin resolver en el periodo
               </p>
               <p className="alert-banner__text">
                 Revisa los paquetes afectados y aplica la solución indicada en la tabla.
@@ -340,6 +381,9 @@ export default function Dashboard() {
             filter={filter}
             onFilterChange={setFilter}
             counts={counts}
+            status={status}
+            onStatusChange={setStatus}
+            statusCounts={statusCounts}
             period={period}
             onPeriodChange={setPeriod}
           />
@@ -364,6 +408,7 @@ export default function Dashboard() {
               loading={loading}
               expanded={expanded}
               onToggle={toggleRow}
+              onToggleResolved={toggleResolved}
               emptyMessage={emptyMessage}
             />
           )}
@@ -385,6 +430,8 @@ export default function Dashboard() {
         </section>
 
         <ReportPanel technologies={activeTech} />
+
+        <DataSourcePanel technologies={technologies} />
       </main>
 
       <footer className="app-footer">
